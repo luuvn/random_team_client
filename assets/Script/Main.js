@@ -23,6 +23,7 @@ cc.Class({
     },
 
     onLoad() {
+        var self = this;
         var scene = cc.director.getScene();
 
         var host = window.document.location.host.replace(/:.*/, '');
@@ -30,6 +31,7 @@ cc.Class({
         var client = new Colyseus.Client(location.protocol.replace("http", "ws") + host + (location.port ? ':' + location.port : ''));
         // var client = new Colyseus.Client(location.protocol.replace("http", "ws") + host + (':2567'));
         var room = client.join("random_team");
+        room._finishInitState = false;
         Global.room = room;
 
         room.onJoin.add(function () {
@@ -38,26 +40,40 @@ cc.Class({
 
         room.onStateChange.addOnce(function (state) {
             console.log("initial room state:", state);
+
+            self.initCards(state);
+
+            room._finishInitState = true;
         });
 
         // new room state
         room.onStateChange.add(function (state) {
             // this signal is triggered on each patch
+            console.log("onStateChange:", state);
+        });
+
+        room.listen("openedClubs/:id", function (change) {
+            console.log("openedClubs");
+            console.log(change);
+
+            if (room._finishInitState && change.value) {
+                self.openCard(change.value);
+            }
         });
 
         // listen to patches coming from the server
         room.onMessage.add(function (message) {
             console.log(message);
-
-            if (message.action == 'show_club') {
-                scene.getChildByName('Card_' + message.index).getComponent('Card').showClub(message.value);
-            }
         });
+    },
+
+    initCards(state) {
+        var scene = cc.director.getScene();
 
         var posX = cc.winSize.width * 0.2;
         var posY = cc.winSize.height * 0.9;
 
-        for (var i = 1; i <= 22; i++) {
+        for (var i = 1; i <= state.numOfClubs; i++) {
             var newCard = cc.instantiate(this.card);
             newCard.active = true;
             newCard.parent = scene;
@@ -72,5 +88,16 @@ cc.Class({
                 posY -= newCard.getContentSize().height * 1.05;
             }
         }
+
+        for (var pos in state.openedClubs) {
+            var element = state.openedClubs[pos];
+            this.openCard(element);
+        }
     },
+
+    openCard(data) {
+        var scene = cc.director.getScene();
+
+        scene.getChildByName('Card_' + data.index).getComponent('Card').showClub(data.value);
+    }
 });
