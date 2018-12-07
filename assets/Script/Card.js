@@ -19,7 +19,11 @@ cc.Class({
     },
 
     onLoad() {
-        this.node.on('mousedown', function (event) {
+        this.node.on(cc.Node.EventType.MOUSE_DOWN, function (event) {
+            Global.room.send({ message: this.node.index });
+        }, this);
+
+        this.node.on(cc.Node.EventType.TOUCH_START, function (event) {
             Global.room.send({ message: this.node.index });
         }, this);
     },
